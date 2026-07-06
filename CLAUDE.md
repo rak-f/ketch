@@ -9,7 +9,7 @@ See [AGENTS.md](AGENTS.md) for full module layout and design principles.
 - `cmd/` — Cobra CLI (root, search, code, docs, scrape, crawl, config, cache, browser, mcp, version)
 - `code/` — `code.Searcher` interface with Grep (built-in default), Sourcegraph, and GitHub backends
 - `docs/` — `docs.Searcher` interface with Context7 backend (local FTS5 planned)
-- `search/` — `Searcher` interface with Brave (built-in default), DDG, SearXNG, and Exa backends
+- `search/` — `Searcher` interface with Brave (built-in default), DDG, SearXNG, Exa, and Firecrawl backends
 - `scrape/` — HTTP fetch + browser fallback via Rod for JS-rendered pages
 - `extract/` — readability + html-to-markdown pipeline, JS shell detection heuristic
 - `crawl/` — BFS/sitemap crawler with background execution and status tracking
@@ -62,6 +62,7 @@ Use --concurrency N (default 5) to control parallel request limit.
 | `ddg` | Zero config | Rate-limited by DDG currently |
 | `searxng` | Self-hosted instance | Most reliable for heavy use |
 | `exa` | Zero config via hosted MCP; optional `ketch config set exa_api_key <key>` | AI-oriented search with snippets/content from Exa |
+| `firecrawl` | API key: `ketch config set firecrawl_api_key <key>` | Firecrawl v2 search API; same provider as scrape/crawl workflows |
 
 ### Code Backends (ketch code)
 

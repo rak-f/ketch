@@ -14,20 +14,21 @@ import (
 
 // Config holds user-configurable defaults for ketch.
 type Config struct {
-	Backend        string            `json:"backend"`
-	SearxngURL     string            `json:"searxng_url"`
-	BraveAPIKey    string            `json:"brave_api_key,omitempty"`
-	ExaAPIKey      string            `json:"exa_api_key,omitempty"`
-	Limit          int               `json:"limit"`
-	CacheTTL       string            `json:"cache_ttl"`
-	Browser        string            `json:"browser,omitempty"` // "chrome", "chromium", or absolute path; empty = disabled
-	CodeBackend    string            `json:"code_backend,omitempty"`
-	DocsBackend    string            `json:"docs_backend,omitempty"`
-	Context7APIKey string            `json:"context7_api_key,omitempty"`
-	SourcegraphURL string            `json:"sourcegraph_url,omitempty"`
-	GithubToken    string            `json:"github_token,omitempty"`
-	URLRewrites    []urlrewrite.Rule `json:"url_rewrites,omitempty"`
-	SPAMarkers     []string          `json:"spa_markers,omitempty"`
+	Backend         string            `json:"backend"`
+	SearxngURL      string            `json:"searxng_url"`
+	BraveAPIKey     string            `json:"brave_api_key,omitempty"`
+	ExaAPIKey       string            `json:"exa_api_key,omitempty"`
+	FirecrawlAPIKey string            `json:"firecrawl_api_key,omitempty"`
+	Limit           int               `json:"limit"`
+	CacheTTL        string            `json:"cache_ttl"`
+	Browser         string            `json:"browser,omitempty"` // "chrome", "chromium", or absolute path; empty = disabled
+	CodeBackend     string            `json:"code_backend,omitempty"`
+	DocsBackend     string            `json:"docs_backend,omitempty"`
+	Context7APIKey  string            `json:"context7_api_key,omitempty"`
+	SourcegraphURL  string            `json:"sourcegraph_url,omitempty"`
+	GithubToken     string            `json:"github_token,omitempty"`
+	URLRewrites     []urlrewrite.Rule `json:"url_rewrites,omitempty"`
+	SPAMarkers      []string          `json:"spa_markers,omitempty"`
 }
 
 // ResolveGithubToken returns a token and the source it came from, walking the
@@ -71,7 +72,7 @@ func Defaults() Config {
 
 // AvailableBackends returns the list of known search backends.
 func AvailableBackends() []string {
-	return []string{"brave", "ddg", "searxng", "exa"}
+	return []string{"brave", "ddg", "searxng", "exa", "firecrawl"}
 }
 
 // AvailableCodeBackends returns the list of known code search backends.

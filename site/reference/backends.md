@@ -4,7 +4,7 @@ ketch has three search surfaces, each with its own backends: web search (`ketch 
 
 ## Web Search Backends
 
-ketch supports four web-search backends. Set the default with `ketch config set backend <name>`.
+ketch supports five web-search backends. Set the default with `ketch config set backend <name>`.
 
 ## Brave (default)
 
@@ -60,6 +60,18 @@ ketch config set backend exa
 ```
 
 **Recommended for:** agent workflows that benefit from Exa's clean result snippets and content-oriented search output.
+
+## Firecrawl
+
+Web search via the [Firecrawl](https://firecrawl.dev) v2 [search API](https://docs.firecrawl.dev/api-reference/endpoint/search) — proper JSON API, no scraping. Requires an API key.
+
+**Setup:**
+
+1. Get an API key at [firecrawl.dev](https://firecrawl.dev)
+2. Set it: `ketch config set firecrawl_api_key <your-key>`
+3. Make it the default: `ketch config set backend firecrawl`
+
+**Recommended for:** operators already using Firecrawl for scraping who want a single provider for both search and page extraction. Pair with `--scrape` to fetch full content per result.
 
 ## Code Search Backends
 

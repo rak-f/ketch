@@ -18,7 +18,7 @@ import (
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
 	Short: "Search the web and return results",
-	Long:  `Search the web using Brave, DuckDuckGo, SearXNG, or Exa (default: the configured backend; brave if unset). Add --scrape to fetch and extract full content from results.`,
+	Long:  `Search the web using Brave, DuckDuckGo, SearXNG, Exa, or Firecrawl (default: the configured backend; brave if unset). Add --scrape to fetch and extract full content from results.`,
 	Args:  exitArgs(cobra.MinimumNArgs(1)),
 	RunE:  runSearch,
 }

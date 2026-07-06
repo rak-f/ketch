@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `firecrawl` web search backend via the [Firecrawl](https://docs.firecrawl.dev) v2 search API (`POST /v2/search`), configured with `ketch config set firecrawl_api_key <key>` and selected with `ketch config set backend firecrawl` or `ketch search -b firecrawl`. Uses the shared `httpx` client and slots into the existing `search.Searcher` interface / `NewFromConfig` switch like the other backends. `ketch config` discovery reports `firecrawl_api_key_set`, and `ketch doctor` gains a live search-backend probe (`ok` / `no_key` / `misconfigured` / `unreachable`). Same provider that powers Firecrawl scrape/crawl workflows, for operators who want one key for both search and page extraction.
 - Claude Code plugin + marketplace manifest: the repo now doubles as a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) hosting one plugin (`plugins/ketch/`) — `claude plugin marketplace add 1broseidon/ketch`, then `claude plugin install ketch@ketch`. The plugin is an optional convenience for Claude Code users, never a prerequisite (the stateless CLI remains the zero-infrastructure path): it wires up `ketch mcp serve` as a stdio MCP server (`.mcp.json`, expects the ketch binary >= v0.10.0 on PATH — the plugin does not vendor it) and ships the bundled agent skill via a symlink to the canonical copy at [`skills/ketch/`](./skills/ketch/), which stays where it is for non-Claude-Code agents.
 
 ## [0.10.0] - 2026-07-01

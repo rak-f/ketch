@@ -13,7 +13,7 @@ import (
 // default backend/limit) stay operator-configured.
 type SearchInput struct {
 	Query      string `json:"query" jsonschema:"the search query"`
-	Backend    string `json:"backend,omitempty" jsonschema:"search backend: brave, ddg, searxng, or exa (default: the configured backend)"`
+	Backend    string `json:"backend,omitempty" jsonschema:"search backend: brave, ddg, searxng, exa, or firecrawl (default: the configured backend)"`
 	Limit      int    `json:"limit,omitempty" jsonschema:"max number of results (default: the configured limit)"`
 	SearxngURL string `json:"searxng_url,omitempty" jsonschema:"override the configured SearXNG instance URL (searxng backend only)"`
 	Scrape     bool   `json:"scrape,omitempty" jsonschema:"also fetch each result URL and fill its content field with extracted markdown"`
