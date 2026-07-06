@@ -21,7 +21,7 @@ cmd/
   mcp.go                     MCP command: `mcp serve` runs the MCP server over stdio
   proc_unix.go               Unix process management (detach, signals)
   proc_windows.go            Windows process management stub
-search/                      Searcher interface + Brave/DDG/SearXNG/EXA backends; NewFromConfig owns the backend switch for cmd/ and mcp/
+search/                      Searcher interface + Brave/DDG/SearXNG/EXA/Firecrawl backends; NewFromConfig owns the backend switch for cmd/ and mcp/
 code/                        code.Searcher interface + GrepApp/Sourcegraph/GitHub backends; NewFromConfig owns the backend switch
 docs/                        docs.Searcher interface + Context7 backend (FTS5 local is an unimplemented stub); NewFromConfig owns the backend switch
 mcp/                         MCP server (search/code/docs/scrape/crawl tools) over the go-sdk mcp package; Server struct holds the shared scraper + cache, tools call the same NewFromConfig constructors as the CLI
@@ -76,6 +76,7 @@ ketch search "query"                        # search, return results
 ketch search "query" --scrape               # search + fetch full content
 ketch search "query" -b searxng             # use SearXNG backend
 ketch search "query" -b exa                 # use Exa hosted MCP backend
+ketch search "query" -b firecrawl           # use Firecrawl v2 search API
 ketch scrape <url>                          # single URL → markdown
 ketch scrape <url1> <url2> <url3>           # concurrent batch scrape
 ketch scrape urls.txt                       # file with one URL per line
@@ -104,7 +105,7 @@ ketch mcp serve                             # run as an MCP server over stdio (s
 | Flag | Scope | Default | Description |
 |------|-------|---------|-------------|
 | --json | global | false | JSON output |
-| --backend, -b | search | brave | Search backend (brave/ddg/searxng/exa) |
+| --backend, -b | search | brave | Search backend (brave/ddg/searxng/exa/firecrawl) |
 | --limit, -l | search | 5 | Max results |
 | --scrape | search | false | Fetch full content |
 | --searxng-url | search | http://localhost:8081 | SearXNG URL |

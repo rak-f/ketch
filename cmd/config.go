@@ -24,6 +24,7 @@ type configInfo struct {
 	SearxngURL            string            `json:"searxng_url"`
 	BraveAPIKeySet        bool              `json:"brave_api_key_set"`
 	ExaAPIKeySet          bool              `json:"exa_api_key_set"`
+	FirecrawlAPIKeySet    bool              `json:"firecrawl_api_key_set"`
 	Limit                 int               `json:"limit"`
 	CacheTTL              string            `json:"cache_ttl"`
 	Browser               string            `json:"browser,omitempty"`
@@ -84,6 +85,7 @@ func runConfigShow(_ *cobra.Command, _ []string) error {
 		SearxngURL:            c.SearxngURL,
 		BraveAPIKeySet:        c.BraveAPIKey != "",
 		ExaAPIKeySet:          c.ExaAPIKey != "",
+		FirecrawlAPIKeySet:    c.FirecrawlAPIKey != "",
 		Limit:                 c.Limit,
 		CacheTTL:              c.CacheTTL,
 		Browser:               c.Browser,
@@ -139,6 +141,10 @@ func runConfigSet(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+// applyConfigSet is a flat key→field dispatch; its cyclomatic complexity scales
+// with the number of config keys, not with any real branching depth.
+//
+//nolint:gocyclo // one arm per config key; splitting it would obscure, not clarify
 func applyConfigSet(c *config.Config, key, value string) error {
 	switch key {
 	case "backend":
@@ -149,6 +155,8 @@ func applyConfigSet(c *config.Config, key, value string) error {
 		c.BraveAPIKey = value
 	case "exa_api_key":
 		c.ExaAPIKey = value
+	case "firecrawl_api_key":
+		c.FirecrawlAPIKey = value
 	case "limit":
 		return setLimit(c, value)
 	case "cache_ttl":
@@ -170,7 +178,7 @@ func applyConfigSet(c *config.Config, key, value string) error {
 	case "spa_markers":
 		return setSPAMarkers(c, value)
 	default:
-		return exitErrf(ExitValidation, "unknown key: %s (valid: backend, searxng_url, brave_api_key, exa_api_key, limit, cache_ttl, browser, code_backend, docs_backend, context7_api_key, sourcegraph_url, github_token, url_rewrites, spa_markers)", key)
+		return exitErrf(ExitValidation, "unknown key: %s (valid: backend, searxng_url, brave_api_key, exa_api_key, firecrawl_api_key, limit, cache_ttl, browser, code_backend, docs_backend, context7_api_key, sourcegraph_url, github_token, url_rewrites, spa_markers)", key)
 	}
 	return nil
 }

@@ -499,6 +499,142 @@ func TestFeatureEXAAPIKeyAdded(t *testing.T) {
 	}
 }
 
+func TestFeatureFirecrawlSearchParses(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"success":true,"data":{"web":[
+			{"url":"https://go.dev/blog/error-handling-and-go","title":"Error handling and Go","description":"Go code uses error values."},
+			{"url":"https://go.dev/doc/","title":"Go Docs","description":"Go documentation"}
+		]}}`)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "k", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	results, err := f.Search(context.Background(), "golang error handling", 5)
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2", len(results))
+	}
+	if results[0].Title != "Error handling and Go" {
+		t.Errorf("title = %q, want %q", results[0].Title, "Error handling and Go")
+	}
+	if results[0].URL != "https://go.dev/blog/error-handling-and-go" {
+		t.Errorf("url = %q, want blog URL", results[0].URL)
+	}
+	if results[0].Description != "Go code uses error values." {
+		t.Errorf("description = %q, want snippet", results[0].Description)
+	}
+}
+
+func TestFeatureFirecrawlRequestShape(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Method; got != http.MethodPost {
+			t.Errorf("method = %q, want POST", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
+			t.Errorf("Authorization = %q, want Bearer test-key", got)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		if body["query"] != "rust release date" {
+			t.Errorf("query = %q, want rust release date", body["query"])
+		}
+		if body["limit"] != float64(5) {
+			t.Errorf("limit = %v, want 5", body["limit"])
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"success":true,"data":{"web":[{"url":"https://www.rust-lang.org/","title":"Rust","description":"Rust"}]}}`)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "test-key", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	_, err := f.Search(context.Background(), "rust release date", 5)
+	if err != nil {
+		t.Fatalf("Search error: %v", err)
+	}
+}
+
+func TestFeatureFirecrawlLimitRespected(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"success":true,"data":{"web":[
+			{"url":"https://a.com","title":"A","description":"a"},
+			{"url":"https://b.com","title":"B","description":"b"},
+			{"url":"https://c.com","title":"C","description":"c"}
+		]}}`)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "k", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	results, err := f.Search(context.Background(), "test", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Errorf("got %d results, want 2 (limit)", len(results))
+	}
+}
+
+func TestFeatureFirecrawlEmptyResults(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"success":true,"data":{"web":[]}}`)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "k", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	results, err := f.Search(context.Background(), "nothing", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected empty results, got %d", len(results))
+	}
+}
+
+func TestFeatureFirecrawlInvalidKey(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "bad-key", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	_, err := f.Search(context.Background(), "test", 5)
+	if err == nil {
+		t.Fatal("expected error for 401 response")
+	}
+	if !strings.Contains(err.Error(), "firecrawl_api_key") {
+		t.Errorf("error %q should carry the config hint", err.Error())
+	}
+}
+
+func TestFeatureFirecrawlServerError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	f := &Firecrawl{apiKey: "k", client: &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	_, err := f.Search(context.Background(), "test", 5)
+	if err == nil {
+		t.Fatal("expected error for 500 response")
+	}
+}
+
 // rewriteTransport rewrites request URLs to point to the test server.
 type rewriteTransport struct {
 	base   http.RoundTripper

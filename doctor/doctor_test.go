@@ -106,6 +106,55 @@ func TestProbeBraveNoKey(t *testing.T) {
 	}
 }
 
+func TestProbeFirecrawlNoKey(t *testing.T) {
+	// Must classify without any network call: the handler fails the test.
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("no-key probe must not hit the network")
+	}))
+	defer ts.Close()
+
+	status, detail := probeFirecrawl(testCtx(t), ts.Client(), ts.URL, "")
+	if status != StatusNoKey {
+		t.Fatalf("status = %q, want no_key", status)
+	}
+	if !strings.Contains(detail, "firecrawl_api_key") {
+		t.Errorf("detail %q should carry the config hint", detail)
+	}
+}
+
+func TestProbeFirecrawlStatuses(t *testing.T) {
+	cases := []struct {
+		name string
+		code int
+		want Status
+	}{
+		{"ok", http.StatusOK, StatusOK},
+		{"invalid key", http.StatusUnauthorized, StatusMisconfigured},
+		{"payment required", http.StatusPaymentRequired, StatusMisconfigured},
+		{"rate limited", http.StatusTooManyRequests, StatusOK},
+		{"server error", http.StatusBadGateway, StatusUnreachable},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Method; got != http.MethodPost {
+					t.Errorf("method = %q, want POST", got)
+				}
+				if got := r.Header.Get("Authorization"); got != "Bearer k" {
+					t.Errorf("Authorization = %q, want Bearer k", got)
+				}
+				w.WriteHeader(tc.code)
+			}))
+			defer ts.Close()
+
+			status, _ := probeFirecrawl(testCtx(t), ts.Client(), ts.URL, "k")
+			if status != tc.want {
+				t.Fatalf("status = %q, want %q", status, tc.want)
+			}
+		})
+	}
+}
+
 func TestProbeBraveStatuses(t *testing.T) {
 	cases := []struct {
 		name string
