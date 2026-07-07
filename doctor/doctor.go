@@ -112,7 +112,7 @@ func buildSpecs(cfg *config.Config, client *http.Client) []spec {
 	browser := cfg.Browser
 	resolveGithub := cfg.ResolveGithubToken
 
-	return []spec{
+	specs := []spec{
 		{"search", "brave", cfg.Backend == "brave" || braveKey != "", func(ctx context.Context) (Status, string) {
 			return probeBrave(ctx, client, braveEndpoint, braveKey)
 		}},
@@ -150,6 +150,17 @@ func buildSpecs(cfg *config.Config, client *http.Client) []spec {
 			return checkCache()
 		}},
 	}
+
+	// The scrape/crawl surface is local by default (covered by the browser and
+	// cache checks); only when the operator switches it to Firecrawl is there a
+	// remote endpoint worth probing, and then it gates the exit code.
+	if cfg.ScrapeBackend == "firecrawl" {
+		specs = append(specs, spec{"scrape", "firecrawl", true, func(ctx context.Context) (Status, string) {
+			return probeFirecrawlScrape(ctx, client, firecrawlScrape, firecrawlKey)
+		}})
+	}
+
+	return specs
 }
 
 // browserBackendName labels the browser check's backend column.

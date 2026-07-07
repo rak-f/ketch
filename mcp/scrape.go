@@ -84,6 +84,16 @@ func (s *Server) validateScrapeInput(in ScrapeInput) error {
 	if in.Raw && in.Trim {
 		return errf(kindValidation, "raw cannot be combined with trim (trim is markdown-specific)")
 	}
+	// selector/force_browser drive the local pipeline; the Firecrawl backend
+	// fetches remotely and has no equivalent — reject rather than ignore.
+	if s.scraper.UsesFirecrawl() {
+		if in.Selector != "" {
+			return errf(kindValidation, "selector requires the local scrape backend (set: ketch config set scrape_backend local)")
+		}
+		if in.ForceBrowser {
+			return errf(kindValidation, "force_browser requires the local scrape backend; Firecrawl renders server-side (set: ketch config set scrape_backend local)")
+		}
+	}
 	// Hard opt-in like the CLI: never silently fall back to HTTP.
 	if in.ForceBrowser && !s.scraper.HasBrowser() {
 		return errf(kindPrecondition, "force_browser requires a configured browser (set with: ketch config set browser chrome)")

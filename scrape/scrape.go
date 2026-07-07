@@ -34,6 +34,11 @@ const (
 	SourceHTTPShell = "http_shell"
 	// SourceBrowser — page was rendered via the headless browser.
 	SourceBrowser = "browser"
+	// SourceFirecrawl — page was fetched via the Firecrawl scrape API
+	// (scrape_backend=firecrawl) rather than the local pipeline. Kept distinct
+	// so a backend switch never serves a local-pipeline entry as a Firecrawl
+	// hit (or vice versa) for the same URL.
+	SourceFirecrawl = "firecrawl"
 )
 
 // Page represents a scraped web page.
@@ -74,6 +79,9 @@ type Scraper struct {
 	browserMu  sync.Mutex
 	browser    BrowserConn
 	rewriter   *urlrewrite.Rewriter
+	// fc is non-nil when scrape_backend=firecrawl: fetches go to the Firecrawl
+	// scrape API instead of the local pipeline. Wired only by NewFromConfig.
+	fc *firecrawlClient
 }
 
 // NewWithRewriter creates a Scraper with an optional browser binary and
@@ -124,6 +132,21 @@ func (s *Scraper) HasBrowser() bool {
 	s.browserMu.Lock()
 	defer s.browserMu.Unlock()
 	return s.browserBin != ""
+}
+
+// UsesFirecrawl reports whether this scraper fetches via the Firecrawl scrape
+// API (scrape_backend=firecrawl) rather than the local HTTP + readability
+// pipeline. Local-only options (--select, --force-browser) don't apply then.
+func (s *Scraper) UsesFirecrawl() bool { return s.fc != nil }
+
+// FirecrawlAPIKey returns the configured Firecrawl API key when the scraper
+// uses the Firecrawl backend, or "" for the local pipeline. crawl.Crawl reads
+// it to route whole-site crawls through the Firecrawl crawl API.
+func (s *Scraper) FirecrawlAPIKey() string {
+	if s.fc == nil {
+		return ""
+	}
+	return s.fc.apiKey
 }
 
 // Rewrite returns the URL after applying configured rewrite rules, or the

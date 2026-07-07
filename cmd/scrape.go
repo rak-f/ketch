@@ -76,6 +76,18 @@ func runScrape(cmd *cobra.Command, args []string) error {
 	}
 	defer scraper.Close()
 
+	// --select and --force-browser drive the local extraction/rendering
+	// pipeline; the Firecrawl backend fetches remotely and has no equivalent.
+	// Reject them explicitly instead of silently ignoring the backend.
+	if scraper.UsesFirecrawl() {
+		if selector != "" {
+			return exitErrf(ExitValidation, "--select requires the local scrape backend (set: ketch config set scrape_backend local)")
+		}
+		if forceBrowser {
+			return exitErrf(ExitValidation, "--force-browser requires the local scrape backend; Firecrawl renders server-side (set: ketch config set scrape_backend local)")
+		}
+	}
+
 	// --force-browser is a hard opt-in: never silently fall back to HTTP, or it
 	// would reproduce the JS-shell confusion the flag exists to avoid.
 	if forceBrowser && !scraper.HasBrowser() {

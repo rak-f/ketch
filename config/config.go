@@ -22,7 +22,8 @@ type Config struct {
 	KeenableAPIKey  string            `json:"keenable_api_key,omitempty"`
 	Limit           int               `json:"limit"`
 	CacheTTL        string            `json:"cache_ttl"`
-	Browser         string            `json:"browser,omitempty"` // "chrome", "chromium", or absolute path; empty = disabled
+	Browser         string            `json:"browser,omitempty"`        // "chrome", "chromium", or absolute path; empty = disabled
+	ScrapeBackend   string            `json:"scrape_backend,omitempty"` // "local" (default) or "firecrawl"
 	CodeBackend     string            `json:"code_backend,omitempty"`
 	DocsBackend     string            `json:"docs_backend,omitempty"`
 	Context7APIKey  string            `json:"context7_api_key,omitempty"`
@@ -65,6 +66,7 @@ func Defaults() Config {
 		SearxngURL:     "http://localhost:8081",
 		Limit:          5,
 		CacheTTL:       "72h",
+		ScrapeBackend:  "local",
 		CodeBackend:    "grepapp",
 		DocsBackend:    "context7",
 		SourcegraphURL: "https://sourcegraph.com",
@@ -75,6 +77,11 @@ func Defaults() Config {
 func AvailableBackends() []string {
 	return []string{"brave", "ddg", "searxng", "exa", "firecrawl", "keenable"}
 }
+
+// AvailableScrapeBackends returns the list of known scrape/crawl backends.
+// "local" is ketch's built-in HTTP-fetch + readability pipeline (with optional
+// browser rendering); "firecrawl" delegates fetching to the Firecrawl v2 API.
+func AvailableScrapeBackends() []string { return []string{"local", "firecrawl"} }
 
 // AvailableCodeBackends returns the list of known code search backends.
 func AvailableCodeBackends() []string { return []string{"grepapp", "sourcegraph", "github"} }

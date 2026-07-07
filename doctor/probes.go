@@ -25,6 +25,7 @@ const (
 	grepAppEndpoint  = "https://mcp.grep.app"
 	exaMCPEndpoint   = "https://mcp.exa.ai/mcp"
 	firecrawlSearch  = "https://api.firecrawl.dev/v2/search"
+	firecrawlScrape  = "https://api.firecrawl.dev/v2/scrape"
 	keenableEndpoint = "https://api.keenable.ai"
 	githubAPIBase    = "https://api.github.com"
 	context7APIBase  = "https://context7.com"
@@ -99,6 +100,39 @@ func probeFirecrawl(ctx context.Context, client *http.Client, endpoint, apiKey s
 		return StatusNoKey, "API key not set (get one free at https://firecrawl.dev then: ketch config set firecrawl_api_key <key>)"
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(`{"query":"ketch","limit":1}`))
+	if err != nil {
+		return StatusUnreachable, probeErrDetail(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return StatusUnreachable, probeErrDetail(err)
+	}
+	defer drain(resp)
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return StatusOK, ""
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusPaymentRequired:
+		return StatusMisconfigured, "API key rejected (ketch config set firecrawl_api_key <key>)"
+	case http.StatusTooManyRequests:
+		return StatusOK, "reachable, key accepted (rate limited)"
+	default:
+		return StatusUnreachable, fmt.Sprintf("returned status %d", resp.StatusCode)
+	}
+}
+
+// probeFirecrawlScrape checks the Firecrawl v2 scrape API — the endpoint the
+// scrape/crawl backend uses when scrape_backend=firecrawl. It scrapes a tiny
+// stable page to confirm the key is accepted (this costs one Firecrawl credit,
+// exactly like probeFirecrawl's search probe).
+func probeFirecrawlScrape(ctx context.Context, client *http.Client, endpoint, apiKey string) (Status, string) {
+	if apiKey == "" {
+		return StatusNoKey, "API key not set (get one free at https://firecrawl.dev then: ketch config set firecrawl_api_key <key>)"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(`{"url":"https://example.com","formats":["markdown"]}`))
 	if err != nil {
 		return StatusUnreachable, probeErrDetail(err)
 	}
