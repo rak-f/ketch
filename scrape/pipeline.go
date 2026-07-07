@@ -51,7 +51,14 @@ func NewFromConfig(cfg *config.Config) (*Scraper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid url_rewrites: %w", err)
 	}
-	return NewWithConfig(cfg.Browser, rw, cfg.SPAMarkers), nil
+	s := NewWithConfig(cfg.Browser, rw, cfg.SPAMarkers)
+	if cfg.ScrapeBackend == "firecrawl" {
+		if cfg.FirecrawlAPIKey == "" {
+			return nil, fmt.Errorf("firecrawl: API key not set (get one free at https://firecrawl.dev then: ketch config set firecrawl_api_key <key>)")
+		}
+		s.fc = newFirecrawlClient(cfg.FirecrawlAPIKey)
+	}
+	return s, nil
 }
 
 // CachedScrape checks the cache first, falls back to fetch+extract.
@@ -152,22 +159,80 @@ func (s *Scraper) CachedScrapeRawForce(ctx context.Context, pc PageCache, url st
 	return page, html, SourceBrowser, nil
 }
 
-// ScrapeMarkdown picks the markdown fetch path: forced browser render or the
+// ScrapeMarkdown picks the markdown fetch path. Under the Firecrawl backend it
+// delegates to the Firecrawl scrape API (forceBrowser doesn't apply — Firecrawl
+// renders server-side); otherwise it is a forced browser render or the
 // auto-detecting CachedScrape.
 func (s *Scraper) ScrapeMarkdown(ctx context.Context, pc PageCache, url string, forceBrowser bool) (*Page, error) {
+	if s.fc != nil {
+		return s.firecrawlScrape(ctx, pc, url)
+	}
 	if forceBrowser {
 		return s.CachedScrapeForce(ctx, pc, url)
 	}
 	return s.CachedScrape(ctx, pc, url)
 }
 
-// ScrapeRaw picks the raw-HTML fetch path: forced browser render or the
-// auto-detecting CachedScrapeRaw.
+// ScrapeRaw picks the raw-HTML fetch path. Under the Firecrawl backend it
+// requests Firecrawl's rawHtml format; otherwise it is a forced browser render
+// or the auto-detecting CachedScrapeRaw.
 func (s *Scraper) ScrapeRaw(ctx context.Context, pc PageCache, url string, forceBrowser bool) (*Page, string, string, error) {
+	if s.fc != nil {
+		return s.firecrawlScrapeRaw(ctx, pc, url)
+	}
 	if forceBrowser {
 		return s.CachedScrapeRawForce(ctx, pc, url)
 	}
 	return s.CachedScrapeRaw(ctx, pc, url)
+}
+
+// firecrawlScrape fetches url as markdown via the Firecrawl backend, honoring
+// the page cache. Entries are tagged SourceFirecrawl so they never collide
+// with local-pipeline entries for the same URL; a markdown hit additionally
+// requires non-empty Markdown so a prior --raw entry (rawHtml only) doesn't
+// satisfy a markdown request.
+func (s *Scraper) firecrawlScrape(ctx context.Context, pc PageCache, url string) (*Page, error) {
+	key := s.Rewrite(url)
+	if pc != nil {
+		if page, source := pc.Get(key); page != nil && source == SourceFirecrawl && page.Markdown != "" {
+			return page, nil
+		}
+	}
+	doc, err := s.fc.scrape(ctx, key, false)
+	if err != nil {
+		return nil, err
+	}
+	page := &Page{URL: url, Title: doc.Title, Markdown: doc.Markdown}
+	if key != url {
+		page.FetchedURL = key
+	}
+	if pc != nil {
+		pc.Put(key, page, SourceFirecrawl)
+	}
+	return page, nil
+}
+
+// firecrawlScrapeRaw is the Firecrawl backend's --raw path: it requests the
+// rawHtml format and caches it as a SourceFirecrawl raw entry.
+func (s *Scraper) firecrawlScrapeRaw(ctx context.Context, pc PageCache, url string) (*Page, string, string, error) {
+	key := s.Rewrite(url)
+	if pc != nil {
+		if rawHTML, source, page := pc.GetRaw(key); page != nil && source == SourceFirecrawl {
+			return page, rawHTML, source, nil
+		}
+	}
+	doc, err := s.fc.scrape(ctx, key, true)
+	if err != nil {
+		return nil, "", "", err
+	}
+	page := &Page{URL: url, Title: doc.Title}
+	if key != url {
+		page.FetchedURL = key
+	}
+	if pc != nil {
+		pc.PutRaw(key, page, SourceFirecrawl, doc.RawHTML)
+	}
+	return page, doc.RawHTML, SourceFirecrawl, nil
 }
 
 // ScrapeSelector fetches rawURL and returns only elements matching the CSS

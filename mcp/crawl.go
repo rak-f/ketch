@@ -99,6 +99,10 @@ func (s *Server) registerCrawlTool() {
 			Concurrency: crawlConcurrency,
 			Allow:       in.Allow,
 			Deny:        in.Deny,
+			// Bound the Firecrawl crawl backend to the same page budget the
+			// collector enforces client-side, so it doesn't over-crawl (and
+			// over-spend credits) beyond what this call will return.
+			Limit: maxPages,
 		}
 		err := crawl.Crawl(crawlCtx, in.URL, s.scraper, opts, s.pageCache(in.NoCache), in.Sitemap, col.collect)
 

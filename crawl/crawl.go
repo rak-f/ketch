@@ -23,6 +23,11 @@ type Options struct {
 	Concurrency int      // worker pool size, default 8
 	Allow       []string // path substrings that URLs must contain (any match passes)
 	Deny        []string // regex patterns to reject URLs
+	// Limit caps the number of pages to fetch; 0 means no explicit cap. Honored
+	// by the Firecrawl crawl backend (passed through as its `limit` param); the
+	// local BFS crawler is bounded by Depth and same-host instead and ignores
+	// it (callers that need a hard local cap stop consuming in their callback).
+	Limit int
 }
 
 // Result represents a single crawled page.
@@ -60,6 +65,13 @@ type hostJSStats struct {
 // www.reddit.com → old.reddit.com, path appends like /uk → /uk/rss) are
 // idempotent and safe.
 func Crawl(ctx context.Context, seed string, s *scrape.Scraper, opts Options, pc *cache.Cache, sitemap bool, fn func(Result)) error {
+	// Firecrawl backend: delegate the whole crawl to the Firecrawl crawl API.
+	// The local BFS-specific inputs (sitemap seed, page cache) don't apply —
+	// Firecrawl handles discovery and caching server-side.
+	if key := s.FirecrawlAPIKey(); key != "" {
+		return crawlFirecrawl(ctx, httpx.Default(), seed, key, opts, fn)
+	}
+
 	seedURL, err := url.Parse(seed)
 	if err != nil {
 		return fmt.Errorf("invalid seed URL: %w", err)
